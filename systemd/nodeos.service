@@ -1,0 +1,21 @@
+[Unit]
+Description=SafeStack NodeOS (GENESIS Core)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/nodeos
+ExecStart=/opt/nodeos/nodeos
+Restart=always
+
+# Security Hardening
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+DeviceAllow=/dev/null rw
+DeviceAllow=/proc/self/status r
+
+[Install]
+WantedBy=multi-user.target

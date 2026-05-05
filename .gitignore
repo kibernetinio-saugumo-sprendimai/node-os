@@ -1,0 +1,28 @@
+# NodeOS Build Artifacts
+nodeos
+nodeos.exe
+
+# NodeOS Local Identity & State (DO NOT COMMIT)
+node_id.txt
+node_key.txt
+node_bin.hash
+genesis_hash.txt
+LOCKDOWN
+
+# Logs
+*.log
+*.crypt.log
+
+# Go
+vendor/
+go.sum
+
+# IDE & OS Trash
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.test
+*.out

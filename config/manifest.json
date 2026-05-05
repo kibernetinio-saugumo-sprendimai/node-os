@@ -1,0 +1,10 @@
+{
+  "allow_forward_anomaly": true,
+  "allow_forward_critical": true,
+  "allow_forward_warn": true,
+  "allow_forward_info": false,
+  "autonomy_level": 3,
+  "lock_on_tamper": true,
+  "self_destruct_on_manifest_violation": false,
+  "personality_multiplier": 1.0
+}

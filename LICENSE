@@ -1,0 +1,27 @@
+# SafeStack Sovereign License (v1.0)
+
+Copyright (c) 2026 Sovereign Node Operator
+Root of Trust: 9760c594fe7e5638a2a6c351db7503817fb803a43cf5ad8547a08d8b6297ad22
+
+## 1. The Core Philosophy
+This software is designed for autonomous operation, cryptographic integrity, and zero-trust environments. By deploying this node, the operator acknowledges that the system's primary duty is to protect its own integrity and the data it holds.
+
+## 2. Right to Operate
+Permission is hereby granted to any person or entity to operate this software, provided that:
+- The node's identity is cryptographically anchored to physical hardware.
+- The manifest is signed by the Root of Trust specified above.
+
+## 3. The Fail-Closed Contract
+The operator understands and accepts that:
+- Any violation of binary, genesis, or manifest integrity will trigger an immediate **LOCKDOWN**.
+- Unauthorized tampering or physical compromise detection may trigger **SELF-DESTRUCT** (secure data erasure).
+- The developers and authors are not responsible for data loss resulting from these security protocols.
+
+## 4. No Liability
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from the use of this autonomous system.
+
+## 5. Sovereign Integrity
+You are the master of your node. Use it wisely. Maintain its silence. Honor its fail-safe nature.
+
+---
+*SAFE · SILENT · FAIL-SAFE*
