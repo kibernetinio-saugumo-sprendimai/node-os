@@ -12,18 +12,25 @@ const LockdownFlag = "/var/lib/nodeos/LOCKDOWN"
 
 var Locked = false
 
-func EnterLockdown(reason string) {
+func EnterLockdown(reason string) error {
 	Locked = true
 	alert.Critical("NODE LOCKDOWN ACTIVATED: " + reason)
-	firewall.ApplyLockdown()
+	if err := firewall.ApplyLockdown(); err != nil {
+		return fmt.Errorf("apply firewall lockdown: %w", err)
+	}
 
-	_ = os.MkdirAll("/var/lib/nodeos", 0700)
-	_ = os.WriteFile(LockdownFlag, []byte(reason+"\n"), 0600)
+	if err := os.MkdirAll("/var/lib/nodeos", 0700); err != nil {
+		return fmt.Errorf("create lockdown directory: %w", err)
+	}
+	if err := os.WriteFile(LockdownFlag, []byte(reason+"\n"), 0600); err != nil {
+		return fmt.Errorf("write lockdown flag: %w", err)
+	}
 
 	fmt.Println("=== NODE LOCKDOWN ACTIVATED ===")
 	fmt.Println("Reason:", reason)
 	fmt.Println("Mode: READ-ONLY")
 	fmt.Println("================================")
+	return nil
 }
 
 func IsLocked() bool {

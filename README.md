@@ -1,7 +1,7 @@
 # SafeStack NodeOS
 > **Sovereign, Autonomous, Zero-Trust Defense for Edge Infrastructure.**
 
-SafeStack NodeOS is a specialized security layer designed for mission-critical OSINT nodes and edge computing devices (optimized for Raspberry Pi 5). It transforms standard hardware into a self-auditing, tamper-proof environment through cryptographic anchoring and continuous behavioral awareness.
+SafeStack NodeOS is an experimental security layer for OSINT nodes and edge devices (optimized for Raspberry Pi 5). It provides self-auditing, hardware-aware cryptographic anchoring and fail-closed integrity checks. It is not described as tamper-proof and requires target-hardware validation before production use.
 
 ---
 

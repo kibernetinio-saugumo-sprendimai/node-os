@@ -3,6 +3,7 @@ package alert
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -63,7 +64,9 @@ func sendFormattedAlert(status string, emoji string, msg string) error {
 	cfg := config.LoadConfig()
 
 	// Log to crypto-log (Signed)
-	logger.Log(status, msg)
+	if err := logger.Log(status, msg); err != nil {
+		return err
+	}
 
 	// Update internal engines
 	UpdateAwareness(status)
@@ -108,6 +111,13 @@ func sendFormattedAlert(status string, emoji string, msg string) error {
 
 	req.Header.Set("Content-Type", "application/json")
 
-	_, err = httpClient.Do(req)
-	return err
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("telegram API returned %s", resp.Status)
+	}
+	return nil
 }

@@ -39,7 +39,7 @@ func CheckBinaryIntegrity(hashPath string) policy.Signal {
 	storedBytes, err := os.ReadFile(hashPath)
 	if err != nil {
 		return policy.Signal{
-			Severity:   policy.SeverityWarn,
+			Severity:   policy.SeverityCritical,
 			Reason:     policy.ReasonBinaryReadFailed,
 			Confidence: 0.8,
 		}
@@ -61,19 +61,27 @@ func CheckBinaryIntegrity(hashPath string) policy.Signal {
 	}
 }
 
-func CheckGenesisIntegrity(id string, pubKeyHex string, anchorPath string) policy.Signal {
+func CheckGenesisIntegrity(id string, pubKeyHex string, hardwareID string, anchorPath string) policy.Signal {
 	storedBytes, err := os.ReadFile(anchorPath)
 	if err != nil {
 		return policy.Signal{
-			Severity:   policy.SeverityWarn,
+			Severity:   policy.SeverityCritical,
 			Reason:     "GENESIS_ANCHOR_MISSING",
 			Confidence: 0.8,
 		}
 	}
 
 	// Reconstruct expected hash
-	pubBytes, _ := hex.DecodeString(pubKeyHex)
-	genesisData := append([]byte(id), pubBytes...)
+	pubBytes, err := hex.DecodeString(pubKeyHex)
+	if err != nil || len(pubBytes) != 32 || id == "" || hardwareID == "" {
+		return policy.Signal{
+			Severity:   policy.SeverityCritical,
+			Reason:     policy.ReasonGenesisMismatch,
+			Confidence: 1.0,
+		}
+	}
+	genesisData := []byte(id + "|" + hardwareID + "|")
+	genesisData = append(genesisData, pubBytes...)
 	h := sha256.Sum256(genesisData)
 	current := hex.EncodeToString(h[:])
 

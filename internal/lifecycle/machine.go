@@ -27,7 +27,7 @@ func allowed(from, to State) bool {
 	case Init:
 		return to == IdentityBorn
 	case IdentityBorn:
-		return to == Aware || to == Terminated
+		return to == Aware || to == Lockdown || to == Terminated
 	case Aware:
 		return to == Degraded || to == Lockdown || to == Terminating
 	case Degraded:

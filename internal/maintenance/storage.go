@@ -21,21 +21,20 @@ type SmartOutput struct {
 }
 
 // CheckNVMeHealth – tikrina NVMe disko sveikatą naudojant smartctl
-func CheckNVMeHealth() {
+func CheckNVMeHealth() error {
 	if runtime.GOOS != "linux" {
-		return
+		return nil
 	}
 
 	// Bandome nuskaityti pirmo NVMe disko informaciją JSON formatu
 	out, err := exec.Command("smartctl", "-a", "/dev/nvme0n1", "--json").Output()
 	if err != nil {
-		// Jei smartctl neįdiegtas arba disko nėra – tyliai išeiname arba loguojame
-		return
+		return fmt.Errorf("smartctl failed: %w", err)
 	}
 
 	var smart SmartOutput
 	if err := json.Unmarshal(out, &smart); err != nil {
-		return
+		return fmt.Errorf("decode smartctl output: %w", err)
 	}
 
 	// 1. Kritinis perspėjimas (Hardware level)
@@ -59,5 +58,7 @@ func CheckNVMeHealth() {
 	// 4. Bendras statusas
 	if !smart.SmartStatus.Passed {
 		alert.Critical("NVMe SMART status: FAILED!")
+		return fmt.Errorf("NVMe SMART status failed")
 	}
+	return nil
 }

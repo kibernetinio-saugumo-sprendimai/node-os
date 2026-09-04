@@ -26,9 +26,14 @@ func Run(autonomyLevel int) Decision {
 
 	// 4. Check Genesis Integrity (Critical)
 	// Anchors the Node ID and Public Key to the filesystem
+	hardwareID, err := identity.GetHardwareID()
+	if err != nil {
+		return Decision{Lockdown: true, Reason: "HARDWARE_ID_UNAVAILABLE"}
+	}
 	sig = CheckGenesisIntegrity(
 		identity.GetNodeID(),
 		identity.GetPublicKey(),
+		hardwareID,
 		"genesis_hash.txt",
 	)
 	if sig.Severity == policy.SeverityCritical {

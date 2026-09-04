@@ -3,15 +3,18 @@ package selfcheck
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"runtime"
 
 	"nodeos/internal/alert"
+	"nodeos/internal/firewall"
 	"nodeos/internal/identity"
+	"nodeos/internal/terminate"
 )
 
 func SelfDestruct(reason string) {
 	alert.Destruct("NODE SELF-DESTRUCT SEQUENCE STARTED: " + reason)
+	if err := firewall.ApplyLockdown(); err != nil {
+		fmt.Println("Firewall lockdown failed:", err)
+	}
 	identity.Wipe()
 
 	fmt.Println("=======================================")
@@ -19,36 +22,36 @@ func SelfDestruct(reason string) {
 	fmt.Println(" Reason:", reason)
 	fmt.Println("=======================================")
 
+	// This is cryptographic erasure: remove the private signing key first.
+	// Flash/NVMe blocks may retain old bytes, so this function intentionally
+	// does not claim physical media sanitization.
 	files := []string{
-		"node_id.txt",
 		"node_key.txt",
-		"node_bin.hash",
-		"genesis_hash.txt",
-		"config/nodeos_config.json",
-		"config/manifest.json",
-		"/var/lib/nodeos/LOCKDOWN",
-		"/var/lib/nodeos/nodeos.crypt.log",
 	}
 
 	for _, f := range files {
-		// Prieš trinant, jei tai genesis_hash, nuimame immutable flag
-		if f == "genesis_hash.txt" && runtime.GOOS == "linux" {
-			exec.Command("chattr", "-i", f).Run()
-		}
-		
 		if _, err := os.Stat(f); err == nil {
-			os.Remove(f)
+			if err := os.Remove(f); err != nil {
+				fmt.Println("Delete failed:", f, err)
+				continue
+			}
 			fmt.Println("Deleted:", f)
 		}
 	}
 
-	os.WriteFile("SELF_DESTRUCTED", []byte("NODE TERMINATED\n"), 0644)
+	_ = os.MkdirAll("/var/lib/nodeos", 0700)
+	if err := os.WriteFile("/var/lib/nodeos/LOCKDOWN", []byte(reason+"\n"), 0600); err != nil {
+		fmt.Println("Lockdown marker write failed:", err)
+	}
+	if err := os.WriteFile("SELF_DESTRUCTED", []byte("PRIVATE KEY DESTROYED; NODE TERMINATED\n"), 0600); err != nil {
+		fmt.Println("Termination marker write failed:", err)
+	}
 
 	fmt.Println("=======================================")
 	fmt.Println(" 🧨 NODE EXECUTED SELF-DESTRUCT")
-	fmt.Println(" 🧩 ALL IDENTITY & STATE ERASED")
-	fmt.Println(" 🚫 SYSTEM SHUTDOWN")
+	fmt.Println(" 🔑 PRIVATE IDENTITY KEY REMOVED")
+	fmt.Println(" 🚫 NODE LOCKED; OFFLINE MEDIA SANITIZATION MAY STILL BE REQUIRED")
 	fmt.Println("=======================================")
 
-	os.Exit(0)
+	terminate.SecurityViolation()
 }

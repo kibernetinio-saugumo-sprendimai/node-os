@@ -2,27 +2,31 @@ package identity
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 // getHardwareID – nuskaito unikalią mikrochemos informaciją (Linux / Pi)
-func getHardwareID() string {
+func getHardwareID() (string, error) {
 	// 1. Standartinis PC (DMI/UUID)
 	if data, err := os.ReadFile("/sys/class/dmi/id/product_uuid"); err == nil {
-		return strings.TrimSpace(string(data))
+		if id := strings.TrimSpace(string(data)); id != "" {
+			return id, nil
+		}
 	}
 	
 	// 2. Raspberry Pi (Serial Number)
 	if data, err := os.ReadFile("/proc/device-tree/serial-number"); err == nil {
-		return strings.TrimSpace(string(data))
+		if id := strings.TrimSpace(string(data)); id != "" {
+			return id, nil
+		}
 	}
 
 	// 3. Fallback į CPU info (senesnės ARM versijos)
@@ -32,13 +36,15 @@ func getHardwareID() string {
 			if strings.HasPrefix(line, "Serial") {
 				parts := strings.Split(line, ":")
 				if len(parts) > 1 {
-					return strings.TrimSpace(parts[1])
+					if id := strings.TrimSpace(parts[1]); id != "" {
+						return id, nil
+					}
 				}
 			}
 		}
 	}
 
-	return "GENERIC-HARDWARE-ID"
+	return "", errors.New("stable hardware identifier unavailable")
 }
 
 
@@ -61,7 +67,11 @@ func loadIdentity() {
 		Identity = NodeIdentity{} // Empty identity
 		return
 	}
-	nodeID := string(idData)
+	nodeID := strings.TrimSpace(string(idData))
+	if nodeID == "" {
+		Identity = NodeIdentity{}
+		return
+	}
 
 	// 2) Load private key (NO auto-create)
 	keyHex, err := os.ReadFile("node_key.txt")
@@ -70,8 +80,8 @@ func loadIdentity() {
 		return
 	}
 
-	privBytes, err := hex.DecodeString(string(keyHex))
-	if err != nil {
+	privBytes, err := hex.DecodeString(strings.TrimSpace(string(keyHex)))
+	if err != nil || len(privBytes) != ed25519.PrivateKeySize {
 		Identity = NodeIdentity{}
 		return
 	}
@@ -89,46 +99,69 @@ func loadIdentity() {
 // ===============================
 // REBIRTH: CREATE NEW ID + KEYS
 // ===============================
-func RebirthIdentity() {
+func RebirthIdentity() error {
 
 	fmt.Println("⚠️  No identity detected — starting REBIRTH ritual...")
 
 	// 1. Create new Node ID (Salted with Hardware ID)
-	hwID := getHardwareID()
-	rawID := uuid.New().String()
+	hwID, err := getHardwareID()
+	if err != nil {
+		return err
+	}
+	randomID := make([]byte, 32)
+	if _, err := rand.Read(randomID); err != nil {
+		return fmt.Errorf("generate node entropy: %w", err)
+	}
 	
 	// Sukuriame mišrų ID: SHA256(HWID + Random)
-	hID := sha256.Sum256([]byte(hwID + rawID))
+	hID := sha256.Sum256(append([]byte(hwID), randomID...))
 	newID := hex.EncodeToString(hID[:])[:32] // Naudojame pirmus 32 simbolius kaip ID
 	
-	os.WriteFile("node_id.txt", []byte(newID), 0644)
+	if err := os.WriteFile("node_id.txt", []byte(newID), 0600); err != nil {
+		return fmt.Errorf("write node id: %w", err)
+	}
 
 	// 2. Generate new ed25519 keypair
-	pub, priv, _ := ed25519.GenerateKey(nil)
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		return fmt.Errorf("generate identity key: %w", err)
+	}
 
 	encodedPriv := hex.EncodeToString(priv)
-	os.WriteFile("node_key.txt", []byte(encodedPriv), 0600)
+	if err := os.WriteFile("node_key.txt", []byte(encodedPriv), 0600); err != nil {
+		return fmt.Errorf("write identity key: %w", err)
+	}
 
 	// 3. Capture Binary Hash
 	exePath, err := os.Executable()
-	if err == nil {
-		if b, err := os.ReadFile(exePath); err == nil {
-			h := sha256.Sum256(b)
-			os.WriteFile("node_bin.hash", []byte(hex.EncodeToString(h[:])), 0644)
-			fmt.Println("🧬 Binary hash captured and locked.")
-		}
+	if err != nil {
+		return fmt.Errorf("resolve executable: %w", err)
 	}
+	b, err := os.ReadFile(exePath)
+	if err != nil {
+		return fmt.Errorf("read executable: %w", err)
+	}
+	h := sha256.Sum256(b)
+	if err := os.WriteFile("node_bin.hash", []byte(hex.EncodeToString(h[:])), 0400); err != nil {
+		return fmt.Errorf("write binary anchor: %w", err)
+	}
+	fmt.Println("🧬 Binary hash captured and locked.")
 
 	// 4. Generate Genesis Hash (Anchor)
-	genesisData := append([]byte(newID), pub...)
+	genesisData := []byte(newID + "|" + hwID + "|")
+	genesisData = append(genesisData, pub...)
 	gHash := sha256.Sum256(genesisData)
 	
 	// Sukuriame failą su tik skaitymo teisėmis (0400)
-	os.WriteFile("genesis_hash.txt", []byte(hex.EncodeToString(gHash[:])), 0400)
+	if err := os.WriteFile("genesis_hash.txt", []byte(hex.EncodeToString(gHash[:])), 0400); err != nil {
+		return fmt.Errorf("write genesis anchor: %w", err)
+	}
 	
 	// Linux specifinis užrakinimas (Immutable)
 	if runtime.GOOS == "linux" {
-		exec.Command("chattr", "+i", "genesis_hash.txt").Run()
+		if err := exec.Command("chattr", "+i", "genesis_hash.txt").Run(); err != nil {
+			return fmt.Errorf("lock genesis anchor: %w", err)
+		}
 	}
 	
 	fmt.Println("⚓ Genesis Hash anchored and LOCKED (immutable).")
@@ -142,6 +175,7 @@ func RebirthIdentity() {
 
 	fmt.Println("✨ REBIRTH COMPLETE — NEW IDENTITY CREATED ✨")
 	fmt.Println("New Node ID:", newID)
+	return nil
 }
 
 // ===============================
@@ -159,8 +193,21 @@ func GetPublicKey() string {
 	return hex.EncodeToString(Identity.PublicKey)
 }
 
-func Sign(data []byte) []byte {
-	return ed25519.Sign(Identity.PrivateKey, data)
+func GetHardwareID() (string, error) {
+	return getHardwareID()
+}
+
+func Ready() bool {
+	return Identity.NodeID != "" &&
+		len(Identity.PrivateKey) == ed25519.PrivateKeySize &&
+		len(Identity.PublicKey) == ed25519.PublicKeySize
+}
+
+func Sign(data []byte) ([]byte, error) {
+	if !Ready() {
+		return nil, errors.New("node identity is not initialized")
+	}
+	return ed25519.Sign(Identity.PrivateKey, data), nil
 }
 
 // Wipe – saugiai ištrina tapatybę iš atminties

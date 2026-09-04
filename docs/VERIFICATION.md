@@ -46,7 +46,7 @@ When the Node is deployed, it anchors itself to the hardware. You can verify thi
 The Genesis Hash is derived as follows:
 `SHA256(NodeID + NodePublicKey)`
 
-If the file `genesis_hash.txt` exists and matches this calculation, the node identity is cryptographically bound to the current hardware state.
+The current anchor is `SHA256(node_id + "|" + current_hardware_id + "|" + public_key_bytes)`. A missing hardware identifier or anchor is a critical failure. Existing anchors created by older versions must be regenerated through the controlled REBIRTH procedure.
 
 ---
 

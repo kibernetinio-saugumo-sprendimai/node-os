@@ -33,11 +33,13 @@ func TestCheckBinaryIntegrity(t *testing.T) {
 
 func TestCheckGenesisIntegrity(t *testing.T) {
 	id := "test-node-id"
+	hardwareID := "test-hardware-id"
 	pubKey := hex.EncodeToString([]byte("test-public-key-32-bytes-long-now"))
 	
 	// Reconstruct expected hash
 	pubBytes, _ := hex.DecodeString(pubKey)
-	genesisData := append([]byte(id), pubBytes...)
+	genesisData := []byte(id + "|" + hardwareID + "|")
+	genesisData = append(genesisData, pubBytes...)
 	h := sha256.Sum256(genesisData)
 	hashHex := hex.EncodeToString(h[:])
 
@@ -45,14 +47,23 @@ func TestCheckGenesisIntegrity(t *testing.T) {
 	defer os.Remove("test_genesis.hash")
 
 	// 1. Test valid
-	sig := CheckGenesisIntegrity(id, pubKey, "test_genesis.hash")
+	sig := CheckGenesisIntegrity(id, pubKey, hardwareID, "test_genesis.hash")
 	if sig.Severity != "OK" {
 		t.Errorf("Expected OK, got %s", sig.Severity)
 	}
 
 	// 2. Test mismatch
-	sig = CheckGenesisIntegrity("wrong-id", pubKey, "test_genesis.hash")
+	sig = CheckGenesisIntegrity("wrong-id", pubKey, hardwareID, "test_genesis.hash")
 	if sig.Severity != "CRITICAL" {
 		t.Errorf("Expected CRITICAL for ID mismatch, got %s", sig.Severity)
+	}
+}
+
+func TestMissingAnchorsFailClosed(t *testing.T) {
+	if sig := CheckBinaryIntegrity("does-not-exist"); sig.Severity != "CRITICAL" {
+		t.Fatalf("missing binary anchor must be critical, got %s", sig.Severity)
+	}
+	if sig := CheckGenesisIntegrity("id", hex.EncodeToString(make([]byte, 32)), "hardware", "does-not-exist"); sig.Severity != "CRITICAL" {
+		t.Fatalf("missing genesis anchor must be critical, got %s", sig.Severity)
 	}
 }

@@ -7,7 +7,9 @@ Type=simple
 User=root
 WorkingDirectory=/opt/nodeos
 ExecStart=/opt/nodeos/nodeos
-Restart=always
+Restart=on-failure
+RestartPreventExitStatus=78
+RestartSec=10s
 
 # Security Hardening
 ProtectSystem=full
