@@ -11,7 +11,7 @@ build:
 	go build -ldflags="-s -w" -o $(BINARY_NAME) nodeos.go
 
 # Run the node
-run: build:
+run: build
 	@echo "Launching NodeOS..."
 	./$(BINARY_NAME)
 
