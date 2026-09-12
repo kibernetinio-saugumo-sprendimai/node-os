@@ -5,49 +5,66 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 )
+
+func fail(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
+	os.Exit(1)
+}
+
+func loadPrivateKey(path string) ed25519.PrivateKey {
+	info, err := os.Stat(path)
+	if err != nil {
+		fail("cannot stat private key file: %v", err)
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		fail("private key file permissions must be 0600 or stricter")
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		fail("cannot read private key file: %v", err)
+	}
+
+	keyBytes, err := hex.DecodeString(strings.TrimSpace(string(raw)))
+	if err != nil {
+		fail("private key must be hex encoded: %v", err)
+	}
+
+	switch len(keyBytes) {
+	case ed25519.SeedSize:
+		return ed25519.NewKeyFromSeed(keyBytes)
+	case ed25519.PrivateKeySize:
+		return ed25519.PrivateKey(keyBytes)
+	default:
+		fail("invalid private key length: got %d bytes, want 32 or 64", len(keyBytes))
+		return nil
+	}
+}
+
+func signFile(privateKey ed25519.PrivateKey, path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fail("cannot read %s: %v", path, err)
+	}
+
+	signature := ed25519.Sign(privateKey, data)
+	signaturePath := path + ".sig"
+	if err := os.WriteFile(signaturePath, []byte(hex.EncodeToString(signature)), 0o644); err != nil {
+		fail("cannot write %s: %v", signaturePath, err)
+	}
+	fmt.Printf("Signature saved to: %s\n", signaturePath)
+}
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run sign_manifest.go <PRIVATE_KEY_HEX> <MANIFEST_FILE>")
-		return
+		fmt.Fprintln(os.Stderr, "Usage: go run sign_manifest.go <PRIVATE_KEY_FILE> <FILE> [FILE...]")
+		os.Exit(2)
 	}
 
-	privHex := os.Args[1]
-	manifestPath := os.Args[2]
-
-	privBytes, err := hex.DecodeString(privHex)
-	if err != nil {
-		fmt.Println("Error decoding private key:", err)
-		return
-	}
-
-	var priv ed25519.PrivateKey
-	if len(privBytes) == 32 {
-		priv = ed25519.NewKeyFromSeed(privBytes)
-	} else if len(privBytes) == 64 {
-		priv = ed25519.PrivateKey(privBytes)
-	} else {
-		fmt.Printf("Error: Invalid private key length (%d bytes). Must be 32 or 64.\n", len(privBytes))
-		return
-	}
-
-	manifest, err := os.ReadFile(manifestPath)
-	if err != nil {
-		fmt.Println("Error reading manifest:", err)
-		return
-	}
-
-	sig := ed25519.Sign(priv, manifest)
-	sigHex := hex.EncodeToString(sig)
-
-	fmt.Println("=== MANIFEST SIGNATURE (HEX) ===")
-	fmt.Println(sigHex)
-	fmt.Println("================================")
-	
-	sigFile := manifestPath + ".sig"
-	err = os.WriteFile(sigFile, []byte(sigHex), 0644)
-	if err == nil {
-		fmt.Printf("Signature saved to: %s\n", sigFile)
+	privateKey := loadPrivateKey(os.Args[1])
+	for _, path := range os.Args[2:] {
+		signFile(privateKey, path)
 	}
 }
