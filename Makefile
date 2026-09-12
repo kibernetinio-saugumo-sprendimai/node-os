@@ -5,65 +5,66 @@ BINARY_NAME=nodeos
 
 all: build
 
-# 🔨 Build the node binary
+# Build the node binary
 build:
-	@echo "🔨 Building SafeStack NodeOS (Optimized)..."
+	@echo "Building SafeStack NodeOS (Optimized)..."
 	go build -ldflags="-s -w" -o $(BINARY_NAME) nodeos.go
 
-# 🚀 Run the node
-run: build
-	@echo "🚀 Launching NodeOS..."
+# Run the node
+run: build:
+	@echo "Launching NodeOS..."
 	./$(BINARY_NAME)
 
-# 🧹 Clean build artifacts
+# Clean build artifacts
 clean:
-	@echo "🧹 Cleaning binaries..."
+	@echo "Cleaning binaries..."
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_NAME).exe
 
-# 🧼 Full Clean: Wipe everything including logs and identity
+# Full Clean: Wipe everything including logs and identity
 full-clean: clean
-	@echo "🧼 Performing DEEP CLEAN..."
+	@echo "Performing DEEP CLEAN..."
 	rm -f node_id.txt node_key.txt node_bin.hash genesis_hash.txt
 	rm -f config/manifest.json.sig SHA256SUMS SHA256SUMS.sig
 	rm -f AUDIT_REPORT.md AUDIT_REPORT.md.sig
 	rm -f /var/lib/nodeos/LOCKDOWN /var/lib/nodeos/nodeos.crypt.log
 
-# 🧬 REBIRTH: Wipe identity and force new generation
+# REBIRTH: Wipe identity and force new generation
 rebirth:
-	@echo "⚠️  Wiping identity and binary hash..."
+	@echo "Wiping identity and binary hash..."
 	rm -f node_id.txt node_key.txt node_bin.hash genesis_hash.txt
 	rm -f /var/lib/nodeos/LOCKDOWN
-	@echo "✨ Ready for REBIRTH on next run."
+	@echo "Ready for REBIRTH on next run."
 
-# 🛠️ Setup dependencies
+# Setup dependencies
 setup:
-	@echo "🛠️ Preparing environment..."
-	@echo "📦 NOTE: Ensure 'smartmontools' is installed for NVMe Health (sudo apt install smartmontools)"
+	@echo "Preparing environment..."
+	@echo "NOTE: Ensure 'smartmontools' is installed for NVMe Health (sudo apt install smartmontools)"
 	go mod tidy
 	mkdir -p config docs systemd
 
-# 🧪 Run internal tests
+# Run internal tests
 test:
-	@echo "🧪 Running package tests..."
+	@echo "Running package tests..."
 	go test -v ./internal/...
 
-# 🛡️ Verify project integrity
+# Verify project integrity. Any mismatch must return a non-zero exit code.
 verify:
-	@echo "🛡️ Checking project signatures..."
-	@sha256sum -c SHA256SUMS || echo "❌ INTEGRITY CHECK FAILED"
+	@echo "Checking project checksums..."
+	@sha256sum -c SHA256SUMS
 
-# 🖋️ Sign the manifest (Usage: make sign-manifest KEY=<priv_key>)
+# Sign files using a path to a mode-0600 Ed25519 private key.
+# Usage: make sign-manifest KEY_FILE=/secure/path/manifest.key
 sign-manifest:
-	@echo "🖋️ Signing manifest..."
-	go run scripts/sign_manifest.go $(KEY) config/manifest.json
+	@test -n "$(KEY_FILE)" || (echo "KEY_FILE is required" >&2; exit 2)
+	@go run scripts/sign_manifest.go "$(KEY_FILE)" config/manifest.json
 
-# 📜 Sign the Audit Trail (Usage: make sign-audit KEY=<priv_key>)
+# Usage: make sign-audit KEY_FILE=/secure/path/audit.key
 sign-audit:
-	@echo "📜 Signing Audit Trail and Checksums..."
-	@go run -e "import ('crypto/ed25519'; 'encoding/hex'; 'os'); func main() { p,_ := hex.DecodeString(\"$(KEY)\"); priv := ed25519.PrivateKey(p); if len(p)==32 { priv = ed25519.NewKeyFromSeed(p) }; for _, f := range []string{\"AUDIT_REPORT.md\", \"SHA256SUMS\"} { d,_ := os.ReadFile(f); s := ed25519.Sign(priv, d); os.WriteFile(f+\".sig\", []byte(hex.EncodeToString(s)), 0644) } }"
+	@test -n "$(KEY_FILE)" || (echo "KEY_FILE is required" >&2; exit 2)
+	@go run scripts/sign_manifest.go "$(KEY_FILE)" AUDIT_REPORT.md SHA256SUMS
 
-# 📖 Help
+# Help
 help:
 	@echo "SafeStack NodeOS - Command Registry"
 	@echo ""
@@ -72,10 +73,9 @@ help:
 	@echo "  make run           - Compile and launch the node"
 	@echo "  make setup         - Prepare environment and dependencies"
 	@echo "  make test          - Run unit tests"
-	@echo "  make verify        - Verify project integrity (SHA256SUMS)"
-	@echo "  make sign-manifest - Sign manifest.json (KEY=<hex>)"
-	@echo "  make sign-audit    - Sign Audit Report & Checksums (KEY=<hex>)"
-	@echo "  make logs          - Tail the signed crypto-log file"
+	@echo "  make verify        - Verify SHA256SUMS and fail on mismatch"
+	@echo "  make sign-manifest KEY_FILE=/secure/path/key"
+	@echo "  make sign-audit    KEY_FILE=/secure/path/key"
 	@echo "  make rebirth       - Reset identity (preserves logs)"
-	@echo "  make full-clean    - Wipe EVERYTHING (identity, logs, audit)"
+	@echo "  make full-clean    - Wipe identity, logs and audit artifacts"
 	@echo "  make clean         - Remove binary artifacts"
