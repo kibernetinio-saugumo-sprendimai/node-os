@@ -29,10 +29,14 @@ func main() {
 	// -------------------------------
 	identity.Init()
 
+	// Constitutional rule: established identity is never silently replaced.
+	// Missing identity is an unknown trust state and therefore fails closed.
 	if identity.GetNodeID() == "" {
-		log.Println("No identity found — performing explicit REBIRTH")
-		identity.RebirthIdentity()
-		alert.Success("REBIRTH ritual complete. New identity generated.")
+		reason := "MISSING_ESTABLISHED_IDENTITY"
+		log.Println("SELF-CHECK CRITICAL:", reason)
+		selfcheck.EnterLockdown(reason)
+		lc.Transition(lifecycle.Lockdown)
+		terminate.Now()
 	}
 
 	log.Println("Node ID:", identity.GetNodeID())
@@ -41,14 +45,16 @@ func main() {
 	// MANIFEST (SIGNED)
 	// -------------------------------
 	if err := identity.LoadManifest(); err != nil {
-		log.Println(err)
+		reason := "MANIFEST_VALIDATION_FAILED: " + err.Error()
+		log.Println(reason)
+		selfcheck.EnterLockdown(reason)
 		lc.Transition(lifecycle.Lockdown)
 		terminate.Now()
 	}
 
 	log.Println(
 		"Manifest loaded. Autonomy:",
-		 identity.NodeManifest.AutonomyLevel,
+		identity.NodeManifest.AutonomyLevel,
 	)
 
 	// -------------------------------
@@ -70,17 +76,19 @@ func main() {
 	defer ticker.Stop()
 	defer maintTicker.Stop()
 
+	handleCritical := func(reason string) {
+		// Constitutional fail-closed behavior. A manifest may not authorize
+		// destructive self-erasure or bypass a critical integrity decision.
+		log.Println("SELF-CHECK CRITICAL:", reason)
+		selfcheck.EnterLockdown(reason)
+		lc.Transition(lifecycle.Lockdown)
+		terminate.Now()
+	}
+
 	// Initial check
 	decision := selfcheck.Run(identity.NodeManifest.AutonomyLevel)
 	if decision.Lockdown {
-		log.Println("SELF-CHECK CRITICAL:", decision.Reason)
-		if identity.NodeManifest.SelfDestructOnManifestViolation {
-			selfcheck.SelfDestruct(decision.Reason)
-		} else if identity.NodeManifest.LockOnTamper {
-			selfcheck.EnterLockdown(decision.Reason)
-			lc.Transition(lifecycle.Lockdown)
-			terminate.Now()
-		}
+		handleCritical(decision.Reason)
 	}
 
 	for {
@@ -88,14 +96,7 @@ func main() {
 		case <-ticker.C:
 			decision := selfcheck.Run(identity.NodeManifest.AutonomyLevel)
 			if decision.Lockdown {
-				log.Println("SELF-CHECK CRITICAL:", decision.Reason)
-				if identity.NodeManifest.SelfDestructOnManifestViolation {
-					selfcheck.SelfDestruct(decision.Reason)
-				} else if identity.NodeManifest.LockOnTamper {
-					selfcheck.EnterLockdown(decision.Reason)
-					lc.Transition(lifecycle.Lockdown)
-					terminate.Now()
-				}
+				handleCritical(decision.Reason)
 			}
 		case <-maintTicker.C:
 			maintenance.RunCleanup()
