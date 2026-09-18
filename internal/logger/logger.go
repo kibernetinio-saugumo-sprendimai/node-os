@@ -31,10 +31,12 @@ func Log(level, msg string) {
 
 	// Sukuriame pasirašomą duomenų bloką (tik t, l, m)
 	payload := fmt.Sprintf("%s|%s|%s", entry.Timestamp, entry.Level, entry.Message)
-	
+
 	// Pasirašome su mazgo privačiu raktu
-	sig := identity.Sign([]byte(payload))
-	entry.Signature = fmt.Sprintf("%x", sig)
+	if len(identity.Identity.PrivateKey) == 64 {
+		sig := identity.Sign([]byte(payload))
+		entry.Signature = fmt.Sprintf("%x", sig)
+	}
 
 	// Serializuojame į JSON
 	data, err := json.Marshal(entry)

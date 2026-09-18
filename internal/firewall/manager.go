@@ -1,56 +1,95 @@
 package firewall
 
 import (
+	"fmt"
 	"log"
 	"os/exec"
 	"runtime"
 )
 
+func run(args ...string) error {
+	if err := exec.Command("ufw", args...).Run(); err != nil {
+		return fmt.Errorf("ufw %v: %w", args, err)
+	}
+	return nil
+}
+
 // Init – pradinė ugniasienės konfigūracija (Safe Default)
-func Init() {
+func Init() error {
 	if runtime.GOOS != "linux" {
-		return
+		return nil
 	}
 
 	log.Println("🛡️ Initializing Firewall (UFW)...")
 
 	// 1. Reset ir default taisyklės
-	exec.Command("ufw", "--force", "reset").Run()
-	exec.Command("ufw", "default", "deny", "incoming").Run()
-	exec.Command("ufw", "default", "allow", "outgoing").Run()
+	if err := run("--force", "reset"); err != nil {
+		return err
+	}
+	if err := run("default", "deny", "incoming"); err != nil {
+		return err
+	}
+	if err := run("default", "allow", "outgoing"); err != nil {
+		return err
+	}
 
 	// 2. Leisti SSH specifiniu prievadu
-	exec.Command("ufw", "allow", "22009/tcp").Run()
+	if err := run("allow", "22009/tcp"); err != nil {
+		return err
+	}
 
 	// 3. Įjungti
-	exec.Command("ufw", "--force", "enable").Run()
+	if err := run("--force", "enable"); err != nil {
+		return err
+	}
 	log.Println("✅ Firewall ACTIVE (Default: Deny Incoming).")
+	return nil
 }
 
 // ApplyLockdown – aklinas užsidarymas
-func ApplyLockdown() {
+func ApplyLockdown() error {
 	if runtime.GOOS != "linux" {
-		return
+		return nil
 	}
 
 	log.Println("🚨 APPLYING NETWORK LOCKDOWN...")
 
-	// Blokuojame viską, išskyrus HTTPS (443) pranešimams išsiųsti
-	exec.Command("ufw", "default", "deny", "outgoing").Run()
-	exec.Command("ufw", "deny", "22009/tcp").Run() // Uždrausti SSH prisijungimą
-	exec.Command("ufw", "allow", "out", "443/tcp").Run()
-	exec.Command("ufw", "allow", "out", "53").Run() // DNS
+	// Reset removes permissive rules left by a previous normal-mode run.
+	if err := run("--force", "reset"); err != nil {
+		return err
+	}
+	if err := run("default", "deny", "incoming"); err != nil {
+		return err
+	}
+	if err := run("default", "deny", "outgoing"); err != nil {
+		return err
+	}
+	if err := run("--force", "enable"); err != nil {
+		return err
+	}
+	// Disable SSH daemons so access is revoked independently of firewall state.
+	for _, service := range []string{"ssh", "sshd"} {
+		if err := exec.Command("systemctl", "disable", "--now", service).Run(); err != nil {
+			log.Printf("could not stop %s service: %v", service, err)
+		}
+	}
 
-	log.Println("🔒 Network LOCKDOWN applied. Only HTTPS/DNS allowed outgoing.")
+	log.Println("🔒 Network LOCKDOWN applied. Inbound and outbound traffic denied.")
+	return nil
 }
 
 // ResetToNormal – grįžimas į įprastą būseną
-func ResetToNormal() {
+func ResetToNormal() error {
 	if runtime.GOOS != "linux" {
-		return
+		return nil
 	}
 
-	exec.Command("ufw", "default", "allow", "outgoing").Run()
-	exec.Command("ufw", "allow", "22009/tcp").Run()
+	if err := run("default", "allow", "outgoing"); err != nil {
+		return err
+	}
+	if err := run("allow", "22009/tcp"); err != nil {
+		return err
+	}
 	log.Println("🔓 Firewall returned to NORMAL (Allow Outgoing & SSH).")
+	return nil
 }

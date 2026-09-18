@@ -13,13 +13,32 @@ import (
 	"nodeos/internal/logger"
 	"nodeos/internal/maintenance"
 	"nodeos/internal/selfcheck"
-	"nodeos/internal/terminate"
 )
 
 // main initializes the system components and starts the continuous awareness loop.
 func main() {
 	logger.Init()
-	firewall.Init()
+	if selfcheck.IsDestroyed() {
+		log.Println("Persisted destruction marker is active; refusing startup.")
+		return
+	}
+	if selfcheck.IsLocked() {
+		if err := firewall.ApplyLockdown(); err != nil {
+			log.Println("CRITICAL: could not reapply persisted lockdown:", err)
+		}
+		log.Println("Persisted lockdown is active; refusing normal startup.")
+		return
+	}
+	if err := identity.Init(); err != nil {
+		log.Println("Invalid local identity:", err)
+		selfcheck.EnterLockdown("INVALID_LOCAL_IDENTITY")
+		return
+	}
+	if err := firewall.Init(); err != nil {
+		log.Println("Firewall initialization failed:", err)
+		selfcheck.EnterLockdown("FIREWALL_INITIALIZATION_FAILED")
+		return
+	}
 	alert.Info("SafeStack NodeOS starting...")
 
 	lc := lifecycle.New()
@@ -27,11 +46,13 @@ func main() {
 	// -------------------------------
 	// IDENTITY
 	// -------------------------------
-	identity.Init()
-
 	if identity.GetNodeID() == "" {
 		log.Println("No identity found — performing explicit REBIRTH")
-		identity.RebirthIdentity()
+		if err := identity.RebirthIdentity(); err != nil {
+			log.Println("Identity creation failed:", err)
+			selfcheck.EnterLockdown("IDENTITY_CREATION_FAILED")
+			return
+		}
 		alert.Success("REBIRTH ritual complete. New identity generated.")
 	}
 
@@ -43,12 +64,13 @@ func main() {
 	if err := identity.LoadManifest(); err != nil {
 		log.Println(err)
 		lc.Transition(lifecycle.Lockdown)
-		terminate.Now()
+		selfcheck.EnterLockdown("MANIFEST_VERIFICATION_FAILED")
+		return
 	}
 
 	log.Println(
 		"Manifest loaded. Autonomy:",
-		 identity.NodeManifest.AutonomyLevel,
+		identity.NodeManifest.AutonomyLevel,
 	)
 
 	// -------------------------------
@@ -75,11 +97,14 @@ func main() {
 	if decision.Lockdown {
 		log.Println("SELF-CHECK CRITICAL:", decision.Reason)
 		if identity.NodeManifest.SelfDestructOnManifestViolation {
-			selfcheck.SelfDestruct(decision.Reason)
-		} else if identity.NodeManifest.LockOnTamper {
+			if !selfcheck.SelfDestruct(decision.Reason) {
+				selfcheck.EnterLockdown("DESTRUCTION_MARKER_WRITE_FAILED")
+				return
+			}
+		} else {
 			selfcheck.EnterLockdown(decision.Reason)
 			lc.Transition(lifecycle.Lockdown)
-			terminate.Now()
+			return
 		}
 	}
 
@@ -90,11 +115,14 @@ func main() {
 			if decision.Lockdown {
 				log.Println("SELF-CHECK CRITICAL:", decision.Reason)
 				if identity.NodeManifest.SelfDestructOnManifestViolation {
-					selfcheck.SelfDestruct(decision.Reason)
-				} else if identity.NodeManifest.LockOnTamper {
+					if !selfcheck.SelfDestruct(decision.Reason) {
+						selfcheck.EnterLockdown("DESTRUCTION_MARKER_WRITE_FAILED")
+						return
+					}
+				} else {
 					selfcheck.EnterLockdown(decision.Reason)
 					lc.Transition(lifecycle.Lockdown)
-					terminate.Now()
+					return
 				}
 			}
 		case <-maintTicker.C:

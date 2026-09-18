@@ -40,13 +40,13 @@ Verification logic:
 
 ---
 
-## 🧬 Step 3: Verify Runtime Genesis Anchor
-When the Node is deployed, it anchors itself to the hardware. You can verify this anchor by checking the `genesis_hash.txt`.
+## 🧬 Step 3: Verify Runtime Genesis Consistency
+When the Node is deployed, it writes a local consistency hash to `genesis_hash.txt`.
 
 The Genesis Hash is derived as follows:
 `SHA256(NodeID + NodePublicKey)`
 
-If the file `genesis_hash.txt` exists and matches this calculation, the node identity is cryptographically bound to the current hardware state.
+If the file exists and matches this calculation, the Node ID and public key match the values used when this local anchor was written. This is not a hardware binding or an independent trust anchor: an attacker able to replace both the identity files and this hash can create a consistent replacement. Hardware binding requires a separately protected source such as a TPM-backed key or signed provisioning record.
 
 ---
 

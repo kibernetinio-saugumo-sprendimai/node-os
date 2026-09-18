@@ -15,7 +15,6 @@ LOCKDOWN
 
 # Go
 vendor/
-go.sum
 
 # IDE & OS Trash
 .vscode/

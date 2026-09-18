@@ -19,7 +19,9 @@ func TestIdentityLifeCycle(t *testing.T) {
 	}
 
 	// 2. Rebirth
-	RebirthIdentity()
+	if err := RebirthIdentity(); err != nil {
+		t.Fatalf("RebirthIdentity failed: %v", err)
+	}
 	id := GetNodeID()
 	if id == "" {
 		t.Fatal("NodeID should not be empty after Rebirth")

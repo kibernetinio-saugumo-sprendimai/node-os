@@ -8,6 +8,19 @@ const (
     SeverityCritical
 )
 
+func (s Severity) String() string {
+    switch s {
+    case SeverityOK:
+        return "OK"
+    case SeverityWarn:
+        return "WARN"
+    case SeverityCritical:
+        return "CRITICAL"
+    default:
+        return "UNKNOWN"
+    }
+}
+
 type Reason string
 
 const (

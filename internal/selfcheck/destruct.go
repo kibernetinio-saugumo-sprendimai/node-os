@@ -10,8 +10,19 @@ import (
 	"nodeos/internal/identity"
 )
 
-func SelfDestruct(reason string) {
+const DestroyedFlag = "/var/lib/nodeos/SELF_DESTRUCTED"
+
+func IsDestroyed() bool {
+	_, err := os.Stat(DestroyedFlag)
+	return err == nil
+}
+
+func SelfDestruct(reason string) bool {
 	alert.Destruct("NODE SELF-DESTRUCT SEQUENCE STARTED: " + reason)
+	if err := os.WriteFile(DestroyedFlag, []byte("NODE TERMINATED\n"), 0600); err != nil {
+		fmt.Println("CRITICAL: could not persist destruction marker:", err)
+		return false
+	}
 	identity.Wipe()
 
 	fmt.Println("=======================================")
@@ -35,20 +46,19 @@ func SelfDestruct(reason string) {
 		if f == "genesis_hash.txt" && runtime.GOOS == "linux" {
 			exec.Command("chattr", "-i", f).Run()
 		}
-		
+
 		if _, err := os.Stat(f); err == nil {
 			os.Remove(f)
 			fmt.Println("Deleted:", f)
 		}
 	}
 
-	os.WriteFile("SELF_DESTRUCTED", []byte("NODE TERMINATED\n"), 0644)
-
 	fmt.Println("=======================================")
 	fmt.Println(" 🧨 NODE EXECUTED SELF-DESTRUCT")
 	fmt.Println(" 🧩 ALL IDENTITY & STATE ERASED")
-	fmt.Println(" 🚫 SYSTEM SHUTDOWN")
+	fmt.Println(" 🚫 PROCESS TERMINATED")
 	fmt.Println("=======================================")
 
 	os.Exit(0)
+	return true
 }

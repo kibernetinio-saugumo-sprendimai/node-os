@@ -18,12 +18,12 @@ Significant integrity violation (e.g. binary mismatch, debugger).
 
 ### Level 3: Destruction
 Critical security breach (e.g. private key theft attempt, manual manifest violation).
-- Action: Wipe keys, wipe logs, delete identity, terminal shutdown.
+- Action: Persist a destruction marker, wipe local identity and logs, then terminate the process. This does not power off the host.
 
 ## Hardening Checklist
 - [x] Port 22009 for SSH
 - [x] Ed25519 Signed Audit Log
-- [x] Hardware Serial Binding
-- [x] Immutable Genesis Hash
+- [ ] Hardware-bound identity (not implemented; a hardware value only salts new random IDs)
+- [ ] Independently protected Genesis anchor (current hash is local filesystem state)
 - [x] Continuous Genesis Integrity Verification
 - [x] Anti-Debugging Monitor
