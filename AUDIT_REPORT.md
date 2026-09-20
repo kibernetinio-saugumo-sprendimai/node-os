@@ -18,8 +18,8 @@ System authority is anchored by root keys:
 
 ## 3. Integrity Control (`selfcheck`)
 Three levels of continuous integrity checking are implemented:
-1.  **Binary Integrity:** Tikrinamas vykdomojo failo SHA256 parašas.
-2.  **Genesis Integrity:** Tikrinamas `Node ID` ir `Public Key` ryšys su užrakintu inkaru.
+1.  **Binary Integrity:** The executable's SHA256 signature is checked.
+2.  **Genesis Integrity:** The `Node ID` and `Public Key` relationship is checked against the locked anchor.
 3.  **Environment Hardening:** Anti-debugging (TracerPid), privilege checks (Root) and open-port auditing.
 
 ## 4. Security Protocols
