@@ -19,16 +19,16 @@ go test ./internal/...
 ## Test Coverage
 
 ### 1. Identity Layer (`internal/identity`)
-- **Tapatybės ciklas:** Tikrina `Rebirth`, `Wipe` ir `Init` funkcijas.
-- **Failų generavimas:** Užtikrina, kad raktai ir ID būtų teisingai išsaugoti diske su tinkamomis teisėmis.
+- **Identity lifecycle:** Tests the `Rebirth`, `Wipe` and `Init` functions.
+- **File generation:** Ensures that keys and IDs are saved correctly on disk with the appropriate permissions.
 
 ### 2. Configuration & Manifest (`internal/config`)
-- **Parašų validavimas:** Tikrina, ar sistema teisingai atpažįsta galiojančius ir suklastotus manifesto parašus.
-- **Root of Trust:** Užtikrina, kad kietai įrašytas viešasis raktas veikia kaip pagrindinis pasitikėjimo šaltinis.
+- **Signature validation:** Tests whether the system correctly recognizes valid and forged manifest signatures.
+- **Root of Trust:** Ensures that the hard-coded public key acts as the primary trust anchor.
 
 ## Security Auditing
 
-Prieš kiekvieną *release*, rekomenduojama rankiniu būdu patikrinti manifesto vientisumą:
-1. Pakeiskite reikšmę `config/manifest.json`.
-2. Paleiskite `make test`.
-3. Įsitikinkite, kad parašų tikrinimas nepraeina be naujo pasirašymo.
+Before each *release*, manually verify manifest integrity:
+1. Change a value in `config/manifest.json`.
+2. Run `make test`.
+3. Confirm that signature verification fails until the manifest is signed again.

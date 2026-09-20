@@ -1,34 +1,34 @@
-# SafeStack NodeOS - Sistemos Audito Ataskaita
+# SafeStack NodeOS - System Audit Report
 **Versija:** v0.2.0-genesis (Audit Ready)
-**Mazgo Tipas:** Autonomous Edge Node
-**Data:** 2026-05-05
-**Statusas:** ✅ VERIFIKUOTA (MASTERED)
+**Node Type:** Autonomous Edge Node
+**Date:** 2026-05-05
+**Status:** ✅ VERIFIED (MASTERED)
 
 ---
 
-## 1. Sistemos Architektūra
-SafeStack NodeOS yra nulinio pasitikėjimo (*Zero-Trust*) infrastruktūros sluoksnis. Šis auditas patvirtina, kad mazgas yra tinkamai sukonfigūruotas savarankiškam darbui priešiškoje aplinkoje.
+## 1. System Architecture
+SafeStack NodeOS is a zero-trust infrastructure layer. This audit confirms that the node is configured for autonomous operation in an adversarial environment.
 
-## 2. Kriptografiniai Inkarai (*Root of Trust*)
-Sistemos autoritetas yra įtvirtintas per šakninius raktus:
+## 2. Cryptographic Anchors (*Root of Trust*)
+System authority is anchored by root keys:
 
 *   **Root Public Key:** `9760c594fe7e5638a2a6c351db7503817fb803a43cf5ad8547a08d8b6297ad22`
-*   **Algoritmas:** Ed25519
-*   **Paskirtis:** Manifesto ir Audito sekos verifikavimas.
+*   **Algorithm:** Ed25519
+*   **Purpose:** Verification of the manifest and audit chain.
 
-## 3. Vientisumo Kontrolė (`selfcheck`)
-Įgyvendinti trys lygiai nepertraukiamo vientisumo tikrinimo:
+## 3. Integrity Control (`selfcheck`)
+Three levels of continuous integrity checking are implemented:
 1.  **Binary Integrity:** Tikrinamas vykdomojo failo SHA256 parašas.
 2.  **Genesis Integrity:** Tikrinamas `Node ID` ir `Public Key` ryšys su užrakintu inkaru.
-3.  **Environment Hardening:** Anti-debugging (TracerPid), Privilege check (Root) ir atvirų prievadų auditavimas.
+3.  **Environment Hardening:** Anti-debugging (TracerPid), privilege checks (Root) and open-port auditing.
 
-## 4. Saugumo Protokolai
-*   **Fail-Closed Logic:** Sistema automatiškai pereina į `LOCKDOWN` arba `SELF-DESTRUCT` būseną aptikus bet kokį vientisumo pažeidimą.
-*   **SSH Hardening:** Port 22009, Password Auth: Disabled, Root Login: No.
-*   **Signed Logging:** Kiekvienas įrašas `/var/lib/nodeos/nodeos.crypt.log` yra pasirašytas mazgo raktu.
+## 4. Security Protocols
+*   **Fail-Closed Logic:** The system automatically enters `LOCKDOWN` or `SELF-DESTRUCT` when an integrity violation is detected.
+*   **SSH Hardening:** Port 22009, password authentication: disabled, root login: no.
+*   **Signed Logging:** Every entry in `/var/lib/nodeos/nodeos.crypt.log` is signed with the node key.
 
-## 5. Audito Išvados
-Sistema sėkmingai praėjo visus unit-testus (`identity`, `config`, `selfcheck`, `alert`). Visi kritiniai failai yra suregistruoti `SHA256SUMS` registre ir pasirašyti savininko parašu.
+## 5. Audit Conclusions
+The system successfully passed all unit tests (`identity`, `config`, `selfcheck`, `alert`). All critical files are recorded in the `SHA256SUMS` manifest and signed by the owner.
 
 ---
 *SafeStack Security Engineering - Autonomous Systems Division*
