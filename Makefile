@@ -25,8 +25,6 @@ clean:
 full-clean: clean
 	@echo "🧼 Performing DEEP CLEAN..."
 	rm -f node_id.txt node_key.txt node_bin.hash genesis_hash.txt
-	rm -f config/manifest.json.sig SHA256SUMS SHA256SUMS.sig
-	rm -f AUDIT_REPORT.md AUDIT_REPORT.md.sig
 	rm -f /var/lib/nodeos/LOCKDOWN /var/lib/nodeos/nodeos.crypt.log
 
 # 🧬 REBIRTH: Wipe identity and force new generation
@@ -51,7 +49,9 @@ test:
 # 🛡️ Verify project integrity
 verify:
 	@echo "🛡️ Checking project signatures..."
-	@sha256sum -c SHA256SUMS || echo "❌ INTEGRITY CHECK FAILED"
+	@go run scripts/verify/main.go
+	@echo "🛡️ Verifying SHA256 file hashes..."
+	@(command -v sha256sum >/dev/null 2>&1 && sha256sum -c SHA256SUMS) || shasum -a 256 -c SHA256SUMS || echo "❌ INTEGRITY CHECK FAILED"
 
 # 🖋️ Sign the manifest (Usage: make sign-manifest KEY=<priv_key>)
 sign-manifest:
@@ -72,10 +72,9 @@ help:
 	@echo "  make run           - Compile and launch the node"
 	@echo "  make setup         - Prepare environment and dependencies"
 	@echo "  make test          - Run unit tests"
-	@echo "  make verify        - Verify project integrity (SHA256SUMS)"
+	@echo "  make verify        - Verify project integrity (SHA256SUMS & signatures)"
 	@echo "  make sign-manifest - Sign manifest.json (KEY=<hex>)"
 	@echo "  make sign-audit    - Sign Audit Report & Checksums (KEY=<hex>)"
-	@echo "  make logs          - Tail the signed crypto-log file"
 	@echo "  make rebirth       - Reset identity (preserves logs)"
 	@echo "  make full-clean    - Wipe EVERYTHING (identity, logs, audit)"
 	@echo "  make clean         - Remove binary artifacts"
